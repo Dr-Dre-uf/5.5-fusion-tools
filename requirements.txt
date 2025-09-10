@@ -1,2 +1,6 @@
 streamlit
-pandas
+streamlit-dash
+fusion-tools
+opencv-python-headless
+matplotlib
+Pillow
