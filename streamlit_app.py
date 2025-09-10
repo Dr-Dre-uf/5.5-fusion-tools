@@ -1,31 +1,27 @@
 import streamlit as st
-import dash
-from dash import html
-from dash import dcc
-from flask import Flask
 import threading
 import time
 import streamlit.components.v1 as components
 
-# Start a simple Dash app in a thread
-def run_dash():
-    app = dash.Dash(__name__)
-    app.layout = html.Div([
-        html.H1("Hello from Dash inside Streamlit"),
-        dcc.Graph(
-            figure={
-                "data": [{"x": [1, 2, 3], "y": [4, 1, 2], "type": "bar"}],
-                "layout": {"title": "Dash Graph"},
-            }
-        ),
-    ])
-    app.run_server(port=8050, debug=False, use_reloader=False)
+# Import your Fusion Tools Visualization
+from fusion_tools.visualization import Visualization
 
-thread = threading.Thread(target=run_dash)
+# Function to run Fusion Tools visualization (Dash under the hood)
+def run_fusion():
+    vis = Visualization()
+    vis.run(port=8050, debug=False, use_reloader=False)
+
+# Start Fusion Tools app in background thread
+thread = threading.Thread(target=run_fusion)
 thread.daemon = True
 thread.start()
 
-time.sleep(1)  # Give Dash server a moment to start
+# Give the server a moment to start
+time.sleep(2)
 
-st.title("Embedding Dash in Streamlit")
-components.iframe("http://localhost:8050", height=600)
+# Streamlit UI
+st.title("Fusion Tools Visualization in Streamlit")
+st.write("This is an embedded Fusion Tools app (Dash) inside Streamlit.")
+
+# Embed the Dash app as iframe
+components.iframe("http://localhost:8050", height=800, scrolling=True)
