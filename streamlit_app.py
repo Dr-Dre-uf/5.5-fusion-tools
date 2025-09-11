@@ -18,11 +18,10 @@ def get_free_port(default=8050):
 
 
 # -------------------------------
-# Initialize Visualization safely
+# Initialize Visualization
 # -------------------------------
 try:
-    vis = Visualization()  # minimal init
-    vis.add_assets_folder("assets")  # register all assets inside ./assets
+    vis = Visualization()  # basic init, no extra args
 except Exception as e:
     st.error(f"❌ Visualization failed to initialize: {e}")
     vis = None
