@@ -15,10 +15,11 @@ except Exception as e:
     st.error(f"❌ fusionDB failed to initialize: {e}")
     st.stop()
 
+
 # --------------------------
 # Helper Functions
 # --------------------------
-def reset_database():
+def reset_database(db):
     try:
         engine = db.engine
         Base.metadata.drop_all(bind=engine)   # drop all tables
@@ -27,7 +28,8 @@ def reset_database():
     except Exception as e:
         st.sidebar.error(f"❌ Failed to reset DB: {e}")
 
-def reload_assets():
+
+def reload_assets(vis):
     assets_folder = os.path.abspath("assets")
     if not os.path.exists(assets_folder):
         st.sidebar.warning(f"⚠️ Assets folder not found at {assets_folder}")
@@ -47,14 +49,6 @@ def reload_assets():
 
     st.sidebar.success(f"✅ Reloaded {loaded} image(s) into the visualization.")
 
-# --------------------------
-# Streamlit Sidebar Controls
-# --------------------------
-st.sidebar.header("Controls")
-if st.sidebar.button("🔄 Reset Database"):
-    reset_database()
-if st.sidebar.button("🖼 Reload Assets"):
-    reload_assets()
 
 # --------------------------
 # Visualization setup
@@ -64,11 +58,22 @@ try:
     vis.database = db
 
     # Load assets initially
-    reload_assets()
+    reload_assets(vis)
 
 except Exception as e:
     st.error(f"❌ Visualization failed to initialize: {e}")
     st.stop()
+
+
+# --------------------------
+# Streamlit Sidebar Controls
+# --------------------------
+st.sidebar.header("Controls")
+if st.sidebar.button("🔄 Reset Database"):
+    reset_database(db)
+if st.sidebar.button("🖼 Reload Assets"):
+    reload_assets(vis)
+
 
 # --------------------------
 # Run Dash app in background
@@ -84,8 +89,10 @@ def run_dash():
     except Exception as e:
         st.error(f"❌ Dash server error: {e}")
 
+
 thread = threading.Thread(target=run_dash, daemon=True)
 thread.start()
+
 
 # --------------------------
 # Streamlit UI
