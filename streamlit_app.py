@@ -1,102 +1,55 @@
-import os
-import threading
 import streamlit as st
-import streamlit.components.v1 as components
+import threading
+import time
+import socket
+
 from fusion_tools.visualization.components import Visualization
-from fusion_tools.database.database import fusionDB, Base
 
-# --------------------------
-# Database setup (in-memory for now)
-# --------------------------
-db_url = "sqlite:///:memory:"
+
+# -------------------------------
+# Utility: find a free port
+# -------------------------------
+def get_free_port(default=8050):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("0.0.0.0", 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port or default
+
+
+# -------------------------------
+# Initialize Visualization safely
+# -------------------------------
 try:
-    db = fusionDB(db_url)
-except Exception as e:
-    st.error(f"❌ fusionDB failed to initialize: {e}")
-    st.stop()
-
-
-# --------------------------
-# Helper Functions
-# --------------------------
-def reset_database(db):
-    try:
-        engine = db.engine
-        Base.metadata.drop_all(bind=engine)   # drop all tables
-        Base.metadata.create_all(bind=engine) # recreate tables
-        st.sidebar.success("✅ Database reset successfully.")
-    except Exception as e:
-        st.sidebar.error(f"❌ Failed to reset DB: {e}")
-
-
-def reload_assets(vis):
-    assets_folder = os.path.abspath("assets")
-    if not os.path.exists(assets_folder):
-        st.sidebar.warning(f"⚠️ Assets folder not found at {assets_folder}")
-        return
-
-    supported_ext = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".svs")
-    loaded = 0
-
-    for fname in os.listdir(assets_folder):
-        fpath = os.path.join(assets_folder, fname)
-        if os.path.isfile(fpath) and fname.lower().endswith(supported_ext):
-            try:
-                vis.local_tile_server.add_new_image(fpath)
-                loaded += 1
-            except Exception as e:
-                st.sidebar.warning(f"⚠️ Could not register {fname}: {e}")
-
-    st.sidebar.success(f"✅ Reloaded {loaded} image(s) into the visualization.")
-
-
-# --------------------------
-# Visualization setup
-# --------------------------
-try:
-    vis = Visualization()
-    vis.database = db
-
-    # Load assets initially
-    reload_assets(vis)
-
+    vis = Visualization()  # minimal init
+    vis.add_assets_folder("assets")  # register all assets inside ./assets
 except Exception as e:
     st.error(f"❌ Visualization failed to initialize: {e}")
-    st.stop()
+    vis = None
 
+# -------------------------------
+# Run Dash viewer in background
+# -------------------------------
+def run_dash(port):
+    if vis is not None:
+        try:
+            vis.viewer_app.run(host="0.0.0.0", port=port, debug=False)
+        except Exception as e:
+            print(f"⚠️ Dash server error: {e}")
 
-# --------------------------
-# Streamlit Sidebar Controls
-# --------------------------
-st.sidebar.header("Controls")
-if st.sidebar.button("🔄 Reset Database"):
-    reset_database(db)
-if st.sidebar.button("🖼 Reload Assets"):
-    reload_assets(vis)
+port = get_free_port()
 
+if vis is not None:
+    thread = threading.Thread(target=run_dash, args=(port,), daemon=True)
+    thread.start()
+    time.sleep(1)  # give Dash server time to start
 
-# --------------------------
-# Run Dash app in background
-# --------------------------
-def run_dash():
-    try:
-        vis.viewer_app.run(
-            host="0.0.0.0",
-            port=8050,
-            debug=False,
-            use_reloader=False
-        )
-    except Exception as e:
-        st.error(f"❌ Dash server error: {e}")
-
-
-thread = threading.Thread(target=run_dash, daemon=True)
-thread.start()
-
-
-# --------------------------
+# -------------------------------
 # Streamlit UI
-# --------------------------
-st.markdown("### Fusion Tools Visualization")
-st.info("Dash app is running below, embedded in an iframe.")
-components.iframe("http://localhost:8050", height=800, scrolling=True)
+# -------------------------------
+st.title("🖼 Fusion Tools Visualization")
+
+if vis is not None:
+    st.components.v1.iframe(f"http://localhost:{port}", height=800)
+else:
+    st.warning("⚠️ Visualization not available.")
