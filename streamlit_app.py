@@ -4,7 +4,6 @@ from fusion_tools.visualization import Visualization
 from fusion_tools.database.database import fusionDB
 
 # --- Database Initialization ---
-# Persistent SQLite database in project root
 db_url = f"sqlite:///{os.path.join(os.getcwd(), 'fusion.db')}"
 db = fusionDB(db_url=db_url, echo=False)
 
@@ -16,31 +15,45 @@ st.sidebar.success(f"Connected to Fusion DB at {db_url}")
 st.title("Fusion Tools Viewer Demo")
 
 # --- Default slide path ---
-slide_path = "assets/breast_US.png"
+default_slide = "assets/breast_US.png"
+slides = []
 
-if not os.path.exists(slide_path):
-    st.error(f"Default slide not found at path: {slide_path}")
+if os.path.exists(default_slide):
+    slides.append(default_slide)
+else:
+    st.sidebar.warning("⚠️ Default slide not found at assets/breast_US.png")
+
+# --- Upload slide(s) ---
+st.sidebar.header("Upload Your Own Slides")
+uploaded_files = st.sidebar.file_uploader(
+    "Choose one or more slides", type=["png", "jpg", "tif"], accept_multiple_files=True
+)
+
+if uploaded_files:
+    os.makedirs(".fusion_assets", exist_ok=True)
+    for uploaded in uploaded_files:
+        save_path = os.path.join(".fusion_assets", uploaded.name)
+        with open(save_path, "wb") as f:
+            f.write(uploaded.read())
+        slides.append(save_path)
+    st.sidebar.success(f"✅ Uploaded {len(uploaded_files)} file(s)")
+
+# --- Guard: if no slides available ---
+if not slides:
+    st.error("No slides available. Please upload a file or place one at assets/breast_US.png")
     st.stop()
 
-# --- Create Visualization with bundled slide ---
+# --- Create Visualization with all slides ---
 vis = Visualization(
-    local_slides=[slide_path],
-    components=[],  # Keep layout simple; customize as needed
+    local_slides=slides,
+    components=[
+        {"type": "row", "components": ["main_viewer"]},
+        {"type": "row", "components": ["annotation_table"]},
+    ],
     database=db,
     app_options={"jupyter": True}
 )
 
-# --- Embed the Viewer in Streamlit ---
+# --- Embed Viewer ---
 st.subheader("Interactive Slide Viewer")
 st.components.v1.html(vis.viewer_app.index(), height=800, scrolling=True)
-
-# --- Optional: Save uploaded slide ---
-st.sidebar.header("Or Upload Your Own Slide")
-uploaded = st.sidebar.file_uploader("", type=["png", "jpg", "tif"])
-if uploaded:
-    # Save to temp and reload viewer
-    temp_path = os.path.join(".fusion_assets", uploaded.name)
-    os.makedirs(os.path.dirname(temp_path), exist_ok=True)
-    with open(temp_path, "wb") as f:
-        f.write(uploaded.read())
-    st.sidebar.success(f"Uploaded to {temp_path}; reload page to view")
