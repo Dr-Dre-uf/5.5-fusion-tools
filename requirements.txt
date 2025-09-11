@@ -1,6 +1,4 @@
 streamlit
-streamlit-dash
-fusion-tools
-opencv-python-headless
-matplotlib
-Pillow
+pillow
+folium
+streamlit-folium
