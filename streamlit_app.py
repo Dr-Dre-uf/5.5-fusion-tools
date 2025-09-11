@@ -1,5 +1,4 @@
 import os
-import tempfile
 import threading
 import streamlit as st
 import streamlit.components.v1 as components
@@ -9,8 +8,12 @@ from fusion_tools.database.database import fusionDB
 # --------------------------
 # Database setup
 # --------------------------
-db_path = os.path.join(tempfile.gettempdir(), "fusion.db")
+# Option A: File-based DB in working dir (persistent)
+db_path = os.path.abspath("fusion.db")
 db_url = f"sqlite:///{db_path}"
+
+# Option B: In-memory DB (non-persistent, safe)
+# db_url = "sqlite:///:memory:"
 
 try:
     db = fusionDB(db_url)
@@ -25,10 +28,20 @@ try:
     vis = Visualization()
     vis.database = db
 
-    # ✅ Add your assets folder
+    # ✅ Add assets folder
     assets_folder = os.path.abspath("assets")
     if os.path.exists(assets_folder):
         vis.assets_folder = assets_folder
+        supported_ext = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".svs")
+
+        for fname in os.listdir(assets_folder):
+            fpath = os.path.join(assets_folder, fname)
+            if os.path.isfile(fpath) and fname.lower().endswith(supported_ext):
+                try:
+                    vis.local_tile_server.add_new_image(fpath)
+                    st.success(f"✅ Registered: {fname}")
+                except Exception as e:
+                    st.warning(f"⚠️ Could not register {fname}: {e}")
     else:
         st.warning(f"⚠️ Assets folder not found at {assets_folder}")
 
@@ -58,6 +71,4 @@ thread.start()
 # --------------------------
 st.markdown("### Fusion Tools Visualization")
 st.info("Dash app is running below, embedded in an iframe.")
-
-# ✅ Embed Dash app inside Streamlit
 components.iframe("http://localhost:8050", height=800, scrolling=True)
