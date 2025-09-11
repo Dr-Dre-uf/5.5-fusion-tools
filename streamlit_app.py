@@ -1,27 +1,21 @@
+import os
 import streamlit as st
-import threading
-import time
-import streamlit.components.v1 as components
-
-# Import your Fusion Tools Visualization
 from fusion_tools.visualization import Visualization
 
-# Function to run Fusion Tools visualization (Dash under the hood)
-def run_fusion():
-    vis = Visualization()
-    vis.run(port=8050, debug=False, use_reloader=False)
+st.title("Fusion Tools Viewer")
 
-# Start Fusion Tools app in background thread
-thread = threading.Thread(target=run_fusion)
-thread.daemon = True
-thread.start()
+# Path to bundled slide
+slide_path = "assets/breast_US.png"
 
-# Give the server a moment to start
-time.sleep(2)
+if os.path.exists(slide_path):
+    vis = Visualization(
+        local_slides=[slide_path],
+        components=[],  # ✅ empty list = no invalid string refs
+        app_options={"jupyter": True}
+    )
 
-# Streamlit UI
-st.title("Fusion Tools Visualization in Streamlit")
-st.write("This is an embedded Fusion Tools app (Dash) inside Streamlit.")
+    # Render Dash inside Streamlit
+    st.components.v1.html(vis.viewer_app.index(), height=800, scrolling=True)
 
-# Embed the Dash app as iframe
-components.iframe("http://localhost:8050", height=800, scrolling=True)
+else:
+    st.error(f"Slide file not found at: {slide_path}")
