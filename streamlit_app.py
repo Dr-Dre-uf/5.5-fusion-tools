@@ -2,16 +2,16 @@ import os
 import tempfile
 import threading
 import streamlit as st
+import streamlit.components.v1 as components
 from fusion_tools.visualization.components import Visualization
 from fusion_tools.database.database import fusionDB
 
 # --------------------------
-# Ensure database works
+# Database setup
 # --------------------------
 db_path = os.path.join(tempfile.gettempdir(), "fusion.db")
 db_url = f"sqlite:///{db_path}"
 
-# Initialize fusionDB directly
 try:
     db = fusionDB(db_url)
 except Exception as e:
@@ -19,11 +19,19 @@ except Exception as e:
     st.stop()
 
 # --------------------------
-# Initialize Visualization
+# Visualization setup
 # --------------------------
 try:
     vis = Visualization()
-    vis.database = db  # attach our initialized DB
+    vis.database = db
+
+    # ✅ Add your assets folder
+    assets_folder = os.path.abspath("assets")
+    if os.path.exists(assets_folder):
+        vis.assets_folder = assets_folder
+    else:
+        st.warning(f"⚠️ Assets folder not found at {assets_folder}")
+
 except Exception as e:
     st.error(f"❌ Visualization failed to initialize: {e}")
     st.stop()
@@ -49,4 +57,7 @@ thread.start()
 # Streamlit UI
 # --------------------------
 st.markdown("### Fusion Tools Visualization")
-st.info("Dash app is running on port **8050**. Embed or proxy as needed.")
+st.info("Dash app is running below, embedded in an iframe.")
+
+# ✅ Embed Dash app inside Streamlit
+components.iframe("http://localhost:8050", height=800, scrolling=True)
