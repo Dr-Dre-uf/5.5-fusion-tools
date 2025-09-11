@@ -3,17 +3,58 @@ import threading
 import streamlit as st
 import streamlit.components.v1 as components
 from fusion_tools.visualization.components import Visualization
-from fusion_tools.database.database import fusionDB
+from fusion_tools.database.database import fusionDB, Base
 
 # --------------------------
-# Database setup (reset each run)
+# Database setup (in-memory for now)
 # --------------------------
-db_url = "sqlite:///:memory:"  # ✅ in-memory, no disk I/O
+db_url = "sqlite:///:memory:"
 try:
     db = fusionDB(db_url)
 except Exception as e:
     st.error(f"❌ fusionDB failed to initialize: {e}")
     st.stop()
+
+# --------------------------
+# Helper Functions
+# --------------------------
+def reset_database():
+    try:
+        engine = db.engine
+        Base.metadata.drop_all(bind=engine)   # drop all tables
+        Base.metadata.create_all(bind=engine) # recreate tables
+        st.sidebar.success("✅ Database reset successfully.")
+    except Exception as e:
+        st.sidebar.error(f"❌ Failed to reset DB: {e}")
+
+def reload_assets():
+    assets_folder = os.path.abspath("assets")
+    if not os.path.exists(assets_folder):
+        st.sidebar.warning(f"⚠️ Assets folder not found at {assets_folder}")
+        return
+
+    supported_ext = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".svs")
+    loaded = 0
+
+    for fname in os.listdir(assets_folder):
+        fpath = os.path.join(assets_folder, fname)
+        if os.path.isfile(fpath) and fname.lower().endswith(supported_ext):
+            try:
+                vis.local_tile_server.add_new_image(fpath)
+                loaded += 1
+            except Exception as e:
+                st.sidebar.warning(f"⚠️ Could not register {fname}: {e}")
+
+    st.sidebar.success(f"✅ Reloaded {loaded} image(s) into the visualization.")
+
+# --------------------------
+# Streamlit Sidebar Controls
+# --------------------------
+st.sidebar.header("Controls")
+if st.sidebar.button("🔄 Reset Database"):
+    reset_database()
+if st.sidebar.button("🖼 Reload Assets"):
+    reload_assets()
 
 # --------------------------
 # Visualization setup
@@ -22,22 +63,8 @@ try:
     vis = Visualization()
     vis.database = db
 
-    # ✅ Add assets folder
-    assets_folder = os.path.abspath("assets")
-    if os.path.exists(assets_folder):
-        vis.assets_folder = assets_folder
-        supported_ext = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".svs")
-
-        for fname in os.listdir(assets_folder):
-            fpath = os.path.join(assets_folder, fname)
-            if os.path.isfile(fpath) and fname.lower().endswith(supported_ext):
-                try:
-                    vis.local_tile_server.add_new_image(fpath)
-                    st.success(f"✅ Registered: {fname}")
-                except Exception as e:
-                    st.warning(f"⚠️ Could not register {fname}: {e}")
-    else:
-        st.warning(f"⚠️ Assets folder not found at {assets_folder}")
+    # Load assets initially
+    reload_assets()
 
 except Exception as e:
     st.error(f"❌ Visualization failed to initialize: {e}")
