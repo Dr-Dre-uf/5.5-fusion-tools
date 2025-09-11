@@ -6,15 +6,9 @@ from fusion_tools.visualization.components import Visualization
 from fusion_tools.database.database import fusionDB
 
 # --------------------------
-# Database setup
+# Database setup (reset each run)
 # --------------------------
-# Option A: File-based DB in working dir (persistent)
-db_path = os.path.abspath("fusion.db")
-db_url = f"sqlite:///{db_path}"
-
-# Option B: In-memory DB (non-persistent, safe)
-# db_url = "sqlite:///:memory:"
-
+db_url = "sqlite:///:memory:"  # ✅ in-memory, no disk I/O
 try:
     db = fusionDB(db_url)
 except Exception as e:
