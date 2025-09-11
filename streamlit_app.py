@@ -1,58 +1,45 @@
-import os
-import threading
 import streamlit as st
-from datetime import datetime
-import streamlit.components.v1 as components
-
+import threading, time, requests
 from fusion_tools.visualization.components import Visualization
-from fusion_tools.database.database import fusionDB
 
+# Create Visualization
+st.write("------Creating Visualization with 0 rows, 1 columns, and 0 tabs--------")
+st.write("----------------- Components in the same row may communicate through callbacks---------")
 
-def main():
-    st.write("------ Creating Visualization App ------")
-    st.write("App start time:", datetime.now())
+vis = Visualization()
 
-    # --- Database setup ---
+# Run Dash app in background thread
+def run_dash():
+    vis.viewer_app.run(
+        host="0.0.0.0",
+        port=8050,
+        debug=False,
+        use_reloader=False
+    )
+
+thread = threading.Thread(target=run_dash, daemon=True)
+thread.start()
+
+# Wait for Dash server to start (retry loop)
+dash_url = "http://localhost:8050"
+for i in range(20):  # 20 retries max (~10 seconds)
     try:
-        db_url = "sqlite:///fusion.db"
-        db = fusionDB(db_url)
-        st.write("✅ Database initialized:", db_url)
-    except Exception as e:
-        st.error(f"❌ Database initialization failed: {e}")
-        return
+        r = requests.get(dash_url)
+        if r.status_code == 200:
+            st.success(f"✅ Dash server is running at {dash_url}")
+            break
+    except requests.exceptions.ConnectionError:
+        time.sleep(0.5)
+else:
+    st.error("❌ Dash server failed to start.")
+    st.stop()
 
-    # --- Image asset ---
-    image_path = os.path.abspath("assets/breast_US.png")
-    if not os.path.exists(image_path):
-        st.error(f"❌ Image not found: {image_path}")
-        return
-    else:
-        st.write("✅ Image found:", image_path)
+# Embed Dash app in Streamlit
+st.markdown(
+    f"""
+    <iframe src="{dash_url}" width="100%" height="800" style="border:none;"></iframe>
+    """,
+    unsafe_allow_html=True
+)
 
-    # --- Visualization ---
-    try:
-        vis = Visualization(
-            local_slides=[image_path],
-            database=db,
-            components=[],
-            app_options={"title": "FUSION Streamlit", "port": 8050, "host": "0.0.0.0"}
-        )
-
-        st.write("✅ Visualization created successfully")
-
-        # Run the Dash app in a background thread
-        def run_dash():
-            vis.run()
-
-        thread = threading.Thread(target=run_dash, daemon=True)
-        thread.start()
-
-        # Render inside Streamlit with iframe
-        components.iframe("http://localhost:8050", height=800, scrolling=True)
-
-    except Exception as e:
-        st.error(f"❌ Visualization failed: {e}")
-
-
-if __name__ == "__main__":
-    main()
+st.write("app start time:", time.strftime("%Y-%m-%d %H:%M:%S"))
