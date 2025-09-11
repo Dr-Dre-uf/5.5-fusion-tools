@@ -1,4 +1,4 @@
 import inspect
-from fusion_tools.database.database import fusionDB
+import fusion_tools.visualization.components as comp
 
-print(inspect.getsource(fusionDB))
+print([name for name, obj in inspect.getmembers(comp, inspect.isclass)])

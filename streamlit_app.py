@@ -1,59 +1,58 @@
 import os
+import threading
 import streamlit as st
-from fusion_tools.visualization import Visualization
+from datetime import datetime
+import streamlit.components.v1 as components
+
+from fusion_tools.visualization.components import Visualization
 from fusion_tools.database.database import fusionDB
 
-# --- Database Initialization ---
-db_url = f"sqlite:///{os.path.join(os.getcwd(), 'fusion.db')}"
-db = fusionDB(db_url=db_url, echo=False)
 
-st.set_page_config(page_title="Fusion Tools Viewer", layout="wide")
-st.sidebar.header("Database Status")
-st.sidebar.success(f"Connected to Fusion DB at {db_url}")
+def main():
+    st.write("------ Creating Visualization App ------")
+    st.write("App start time:", datetime.now())
 
-# --- Main App Title ---
-st.title("Fusion Tools Viewer Demo")
+    # --- Database setup ---
+    try:
+        db_url = "sqlite:///fusion.db"
+        db = fusionDB(db_url)
+        st.write("✅ Database initialized:", db_url)
+    except Exception as e:
+        st.error(f"❌ Database initialization failed: {e}")
+        return
 
-# --- Default slide path ---
-default_slide = "assets/breast_US.png"
-slides = []
+    # --- Image asset ---
+    image_path = os.path.abspath("assets/breast_US.png")
+    if not os.path.exists(image_path):
+        st.error(f"❌ Image not found: {image_path}")
+        return
+    else:
+        st.write("✅ Image found:", image_path)
 
-if os.path.exists(default_slide):
-    slides.append(default_slide)
-else:
-    st.sidebar.warning("⚠️ Default slide not found at assets/breast_US.png")
+    # --- Visualization ---
+    try:
+        vis = Visualization(
+            local_slides=[image_path],
+            database=db,
+            components=[],
+            app_options={"title": "FUSION Streamlit", "port": 8050, "host": "0.0.0.0"}
+        )
 
-# --- Upload slide(s) ---
-st.sidebar.header("Upload Your Own Slides")
-uploaded_files = st.sidebar.file_uploader(
-    "Choose one or more slides", type=["png", "jpg", "tif"], accept_multiple_files=True
-)
+        st.write("✅ Visualization created successfully")
 
-if uploaded_files:
-    os.makedirs(".fusion_assets", exist_ok=True)
-    for uploaded in uploaded_files:
-        save_path = os.path.join(".fusion_assets", uploaded.name)
-        with open(save_path, "wb") as f:
-            f.write(uploaded.read())
-        slides.append(save_path)
-    st.sidebar.success(f"✅ Uploaded {len(uploaded_files)} file(s)")
+        # Run the Dash app in a background thread
+        def run_dash():
+            vis.run()
 
-# --- Guard: if no slides available ---
-if not slides:
-    st.error("No slides available. Please upload a file or place one at assets/breast_US.png")
-    st.stop()
+        thread = threading.Thread(target=run_dash, daemon=True)
+        thread.start()
 
-# --- Create Visualization with all slides ---
-vis = Visualization(
-    local_slides=slides,
-    components=[
-        {"type": "row", "components": ["main_viewer"]},
-        {"type": "row", "components": ["annotation_table"]},
-    ],
-    database=db,
-    app_options={"jupyter": True}
-)
+        # Render inside Streamlit with iframe
+        components.iframe("http://localhost:8050", height=800, scrolling=True)
 
-# --- Embed Viewer ---
-st.subheader("Interactive Slide Viewer")
-st.components.v1.html(vis.viewer_app.index(), height=800, scrolling=True)
+    except Exception as e:
+        st.error(f"❌ Visualization failed: {e}")
+
+
+if __name__ == "__main__":
+    main()
