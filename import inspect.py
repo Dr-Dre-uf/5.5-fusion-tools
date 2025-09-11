@@ -1,5 +1,4 @@
 import inspect
-from fusion_tools.visualization import Visualization
+from fusion_tools.database.database import fusionDB
 
-print(inspect.signature(Visualization))
-print(inspect.getsource(Visualization.__init__))
+print(inspect.getsource(fusionDB))
